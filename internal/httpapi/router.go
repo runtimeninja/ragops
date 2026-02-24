@@ -7,18 +7,25 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/runtimeninja/ragops/internal/httpapi/middleware"
+	"github.com/runtimeninja/ragops/internal/observability"
 )
 
 type Deps struct {
 	DBPinger func(ctx context.Context) error
 	Logger   *slog.Logger
+	Metrics  *observability.Metrics
 }
 
 func NewRouter(d Deps) *chi.Mux {
 	r := chi.NewRouter()
+
 	r.Use(middleware.RequestID)
+	if d.Metrics != nil {
+		r.Use(middleware.Metrics(d.Metrics))
+	}
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -50,6 +57,8 @@ func NewRouter(d Deps) *chi.Mux {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ready"))
 	})
+
+	r.Handle("/metrics", promhttp.Handler())
 
 	return r
 }

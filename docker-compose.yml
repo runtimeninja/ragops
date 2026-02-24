@@ -1,6 +1,7 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
+    container_name: ragops-postgres
     environment:
       POSTGRES_USER: ragops
       POSTGRES_PASSWORD: ragops
@@ -12,10 +13,12 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: ragops-redis
     ports:
       - "6379:6379"
 
   api:
+    container_name: ragops-api
     build:
       context: .
       dockerfile: deployments/docker/Dockerfile
@@ -28,6 +31,16 @@ services:
       - redis
     ports:
       - "8080:8080"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: ragops-prometheus
+    volumes:
+      - ./deployments/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
 
 volumes:
   pgdata:

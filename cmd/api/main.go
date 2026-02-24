@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,10 +19,12 @@ func main() {
 	ctx := context.Background()
 
 	logger := observability.NewLogger("dev")
+	metrics := observability.NewMetrics()
 
 	db, err := storage.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("db connect failed: %v", err)
+		logger.Error("db connect failed", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
@@ -32,6 +33,7 @@ func main() {
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DBPinger: db.Ping,
 			Logger:   logger,
+			Metrics:  metrics,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

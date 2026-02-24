@@ -2,18 +2,23 @@ package httpapi
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/runtimeninja/ragops/internal/httpapi/middleware"
 )
 
 type Deps struct {
 	DBPinger func(ctx context.Context) error
+	Logger   *slog.Logger
 }
 
 func NewRouter(d Deps) *chi.Mux {
 	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -23,7 +28,7 @@ func NewRouter(d Deps) *chi.Mux {
 
 	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		if d.DBPinger == nil {
-			http.Error(w, "not ready", http.StatusServiceUnavailable)
+			WriteError(w, http.StatusServiceUnavailable, "not ready")
 			return
 		}
 
@@ -31,7 +36,13 @@ func NewRouter(d Deps) *chi.Mux {
 		defer cancel()
 
 		if err := d.DBPinger(ctx); err != nil {
-			http.Error(w, "not ready", http.StatusServiceUnavailable)
+			if d.Logger != nil {
+				d.Logger.Warn("readyz db ping failed",
+					"request_id", middleware.GetRequestID(r.Context()),
+					"error", err,
+				)
+			}
+			WriteError(w, http.StatusServiceUnavailable, "not ready")
 			return
 		}
 

@@ -11,12 +11,15 @@ import (
 
 	"github.com/runtimeninja/ragops/internal/app"
 	"github.com/runtimeninja/ragops/internal/httpapi"
+	"github.com/runtimeninja/ragops/internal/observability"
 	"github.com/runtimeninja/ragops/internal/storage"
 )
 
 func main() {
 	cfg := app.Load()
 	ctx := context.Background()
+
+	logger := observability.NewLogger("dev")
 
 	db, err := storage.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -25,15 +28,18 @@ func main() {
 	defer db.Close()
 
 	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(httpapi.Deps{DBPinger: db.Ping}),
+		Addr: cfg.HTTPAddr,
+		Handler: httpapi.NewRouter(httpapi.Deps{
+			DBPinger: db.Ping,
+			Logger:   logger,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
-		log.Printf("ragops api listening on %s", cfg.HTTPAddr)
+		logger.Info("api listening", "addr", cfg.HTTPAddr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
+			logger.Error("server error", "error", err)
 		}
 	}()
 
@@ -44,5 +50,5 @@ func main() {
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctxShutdown)
-	log.Printf("shutdown complete")
+	logger.Info("shutdown complete")
 }

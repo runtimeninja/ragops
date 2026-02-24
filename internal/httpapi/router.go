@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/runtimeninja/ragops/internal/httpapi/handlers"
 	"github.com/runtimeninja/ragops/internal/httpapi/middleware"
 	"github.com/runtimeninja/ragops/internal/observability"
 )
@@ -17,6 +18,8 @@ type Deps struct {
 	DBPinger func(ctx context.Context) error
 	Logger   *slog.Logger
 	Metrics  *observability.Metrics
+
+	Docs *handlers.DocumentsHandler
 }
 
 func NewRouter(d Deps) *chi.Mux {
@@ -38,7 +41,6 @@ func NewRouter(d Deps) *chi.Mux {
 			WriteError(w, http.StatusServiceUnavailable, "not ready")
 			return
 		}
-
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 
@@ -52,13 +54,20 @@ func NewRouter(d Deps) *chi.Mux {
 			WriteError(w, http.StatusServiceUnavailable, "not ready")
 			return
 		}
-
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ready"))
 	})
 
 	r.Handle("/metrics", promhttp.Handler())
+
+	r.Route("/v1", func(r chi.Router) {
+		r.Post("/documents", d.Docs.Create)
+		r.Get("/documents/{id}/status", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			d.Docs.Status(w, r, id)
+		})
+	})
 
 	return r
 }

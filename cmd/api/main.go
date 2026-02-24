@@ -10,6 +10,9 @@ import (
 
 	"github.com/runtimeninja/ragops/internal/app"
 	"github.com/runtimeninja/ragops/internal/httpapi"
+	"github.com/runtimeninja/ragops/internal/httpapi/handlers"
+	"github.com/runtimeninja/ragops/internal/ingest"
+	"github.com/runtimeninja/ragops/internal/jobs"
 	"github.com/runtimeninja/ragops/internal/observability"
 	"github.com/runtimeninja/ragops/internal/storage"
 )
@@ -28,12 +31,19 @@ func main() {
 	}
 	defer db.Close()
 
+	jq := jobs.NewClient(cfg.RedisAddr)
+	defer jq.Close()
+
+	ing := ingest.NewService(db.Pool)
+	docs := handlers.NewDocumentsHandler(db.Pool, ing, jq)
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.Deps{
 			DBPinger: db.Ping,
 			Logger:   logger,
 			Metrics:  metrics,
+			Docs:     docs,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

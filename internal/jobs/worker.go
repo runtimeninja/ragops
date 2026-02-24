@@ -7,11 +7,12 @@ import (
 )
 
 type Worker struct {
-	log *slog.Logger
+	log       *slog.Logger
+	processor *Processor
 }
 
-func NewWorker(log *slog.Logger) *Worker {
-	return &Worker{log: log}
+func NewWorker(log *slog.Logger, processor *Processor) *Worker {
+	return &Worker{log: log, processor: processor}
 }
 
 func (w *Worker) Run(redisAddr string) error {
@@ -26,6 +27,7 @@ func (w *Worker) Run(redisAddr string) error {
 	)
 
 	mux := asynq.NewServeMux()
+	mux.HandleFunc(TaskIngestDocument, w.processor.HandleIngest)
 
 	w.log.Info("worker started", "redis", redisAddr)
 	return srv.Run(mux)

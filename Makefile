@@ -20,3 +20,11 @@ docker-up:
 
 docker-down:
 	docker compose down -v
+
+	.PHONY: migrate-up migrate-down
+
+migrate-up:
+	goose -dir internal/storage/migrations postgres "$$RAGOPS_DATABASE_URL" up
+
+migrate-down:
+	goose -dir internal/storage/migrations postgres "$$RAGOPS_DATABASE_URL" down

@@ -18,7 +18,7 @@ func main() {
 	cfg := app.Load()
 	ctx := context.Background()
 
-	logger := observability.NewLogger("dev")
+	logger := observability.NewLogger(cfg.Env)
 	metrics := observability.NewMetrics()
 
 	db, err := storage.Connect(ctx, cfg.DatabaseURL)

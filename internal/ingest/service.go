@@ -81,7 +81,27 @@ func (s *Service) Process(ctx context.Context, documentID string) error {
 	}
 
 	// MVP: no chunking/embeddings yet. Just mark ready.
+	chunks := ChunkText(content, 800, 100)
+
+	for i, c := range chunks {
+		_, err = tx.Exec(ctx, `
+		INSERT INTO chunks (id, document_id, chunk_index, content, token_count)
+		VALUES ($1,$2,$3,$4,$5)
+		ON CONFLICT (document_id, chunk_index) DO NOTHING
+	`, uuid.New(), documentID, i, c, 0)
+		if err != nil {
+			_, _ = tx.Exec(ctx, `UPDATE documents SET status='failed', error_message=$2, updated_at=now() WHERE id=$1`,
+				documentID, "chunk insert failed")
+			return err
+		}
+	}
+
+	// Mark ready
 	_, err = tx.Exec(ctx, `UPDATE documents SET status='ready', updated_at=now(), error_message=NULL WHERE id=$1`, documentID)
+	if err != nil {
+		return err
+	}
+
 	if err != nil {
 		return err
 	}

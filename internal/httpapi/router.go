@@ -20,6 +20,7 @@ type Deps struct {
 	Metrics  *observability.Metrics
 
 	Docs *handlers.DocumentsHandler
+	Chat *handlers.ChatHandler
 }
 
 func NewRouter(d Deps) *chi.Mux {
@@ -67,6 +68,8 @@ func NewRouter(d Deps) *chi.Mux {
 			id := chi.URLParam(r, "id")
 			d.Docs.Status(w, r, id)
 		})
+
+		r.Post("/chat", d.Chat.Chat)
 	})
 
 	return r

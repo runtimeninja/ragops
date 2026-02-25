@@ -27,6 +27,8 @@ services:
       RAGOPS_HTTP_ADDR: ":8080"
       RAGOPS_DATABASE_URL: "postgres://ragops:ragops@postgres:5432/ragops?sslmode=disable"
       RAGOPS_REDIS_ADDR: "redis:6379"
+    env_file:
+      - .env
     depends_on:
       - postgres
       - redis
@@ -42,6 +44,8 @@ services:
     environment:
       RAGOPS_DATABASE_URL: "postgres://ragops:ragops@postgres:5432/ragops?sslmode=disable"
       RAGOPS_REDIS_ADDR: "redis:6379"
+    env_file:
+      - .env
     depends_on:
       - postgres
       - redis

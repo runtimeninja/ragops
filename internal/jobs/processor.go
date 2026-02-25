@@ -6,18 +6,20 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/runtimeninja/ragops/internal/rag"
 )
 
-type Ingestor interface {
-	Process(ctx context.Context, documentID string) error
-}
-
 type Processor struct {
-	ing Ingestor
+	ing interface {
+		Process(ctx context.Context, documentID string, emb rag.Embedder) error
+	}
+	emb rag.Embedder
 }
 
-func NewProcessor(ing Ingestor) *Processor {
-	return &Processor{ing: ing}
+func NewProcessor(ing interface {
+	Process(ctx context.Context, documentID string, emb rag.Embedder) error
+}, emb rag.Embedder) *Processor {
+	return &Processor{ing: ing, emb: emb}
 }
 
 func (p *Processor) HandleIngest(ctx context.Context, t *asynq.Task) error {
@@ -26,8 +28,8 @@ func (p *Processor) HandleIngest(ctx context.Context, t *asynq.Task) error {
 		return err
 	}
 
-	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	cctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	return p.ing.Process(cctx, payload.DocumentID)
+	return p.ing.Process(cctx, payload.DocumentID, p.emb)
 }

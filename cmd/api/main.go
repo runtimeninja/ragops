@@ -14,6 +14,7 @@ import (
 	"github.com/runtimeninja/ragops/internal/ingest"
 	"github.com/runtimeninja/ragops/internal/jobs"
 	"github.com/runtimeninja/ragops/internal/observability"
+	"github.com/runtimeninja/ragops/internal/rag"
 	"github.com/runtimeninja/ragops/internal/storage"
 )
 
@@ -37,6 +38,14 @@ func main() {
 	ing := ingest.NewService(db.Pool)
 	docs := handlers.NewDocumentsHandler(db.Pool, ing, jq)
 
+	// add: chat handler deps
+	client := rag.NewOpenAI(cfg.OpenAIAPIKey)
+	emb := rag.NewOpenAIEmbedder(client, cfg.OpenAIEmbModel)
+	ans := rag.NewOpenAIAnswerer(client)
+	ret := rag.NewRetriever(db.Pool)
+
+	chat := handlers.NewChatHandler(emb, ret, ans, cfg.OpenAIChatModel)
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.Deps{
@@ -44,6 +53,7 @@ func main() {
 			Logger:   logger,
 			Metrics:  metrics,
 			Docs:     docs,
+			Chat:     chat,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

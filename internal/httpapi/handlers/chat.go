@@ -41,7 +41,7 @@ func (h *ChatHandler) Chat(w http.ResponseWriter, r *http.Request) {
 
 	qvec, _, err := h.emb.Embed(r.Context(), req.Question)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "embed failed")
+		writeError(w, http.StatusInternalServerError, "embed failed: "+err.Error())
 		return
 	}
 

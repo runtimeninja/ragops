@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -45,12 +47,13 @@ func (c *OpenAI) doJSON(ctx context.Context, method, url string, reqBody any, ou
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("openai request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("openai http %d", resp.StatusCode)
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("openai http %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
 	return json.NewDecoder(resp.Body).Decode(out)
